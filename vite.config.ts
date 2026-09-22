@@ -7,6 +7,23 @@ export default defineConfig({
   plugins: [
     react(),
     runtimeErrorOverlay(),
+    {
+      name: "api-dev-server",
+      configureServer(server) {
+        server.middlewares.use(async (req, res, next) => {
+          if (req.url && (req.url.startsWith("/api") || req.url === "/api")) {
+            try {
+              const apiModule = await import("./api/index.js");
+              return apiModule.default(req, res, next);
+            } catch (err) {
+              console.error("API error:", err);
+              next(err);
+            }
+          }
+          next();
+        });
+      },
+    },
     ...(process.env.NODE_ENV !== "production" &&
     process.env.REPL_ID !== undefined
       ? [
@@ -19,7 +36,6 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "client", "src"),
-      "@shared": path.resolve(import.meta.dirname, "shared"),
       "@assets": path.resolve(import.meta.dirname, "attached_assets"),
     },
   },
