@@ -1,5 +1,7 @@
 import express from "express";
 import { randomUUID } from "crypto";
+import fs from "fs";
+import path from "path";
 
 const app = express();
 
@@ -22,7 +24,9 @@ app.use((req, res, next) => {
   express.json()(req, res, next);
 });
 
-// In-memory storage
+// File-based persistence using /tmp directory
+const TMP_FILE = path.join("/tmp", "trackprimo_data.json");
+
 const SEED_PACKAGES = [
   {
     id: "TRK-7849201",
@@ -98,6 +102,33 @@ let memoryStore = {
   messages: [...SEED_MESSAGES]
 };
 
+function loadStore() {
+  try {
+    if (fs.existsSync(TMP_FILE)) {
+      const data = JSON.parse(fs.readFileSync(TMP_FILE, "utf-8"));
+      if (Array.isArray(data.packages) && data.packages.length > 0) {
+        memoryStore.packages = data.packages;
+      }
+      if (Array.isArray(data.messages)) {
+        memoryStore.messages = data.messages;
+      }
+    }
+  } catch (err) {
+    console.error("Error reading persistence file:", err);
+  }
+}
+
+function saveStore() {
+  try {
+    fs.writeFileSync(TMP_FILE, JSON.stringify(memoryStore, null, 2), "utf-8");
+  } catch (err) {
+    console.error("Error writing persistence file:", err);
+  }
+}
+
+// Initial load
+loadStore();
+
 // Setup API routes on a router
 const router = express.Router();
 
@@ -112,6 +143,7 @@ router.post("/admin/login", (req, res) => {
 
 // Get all packages
 router.get("/packages", (req, res) => {
+  loadStore();
   const sorted = [...memoryStore.packages].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
@@ -120,6 +152,7 @@ router.get("/packages", (req, res) => {
 
 // Get single package by ID
 router.get("/packages/:id", (req, res) => {
+  loadStore();
   const { id } = req.params;
   const pkg = memoryStore.packages.find(
     (p) => p.id.toLowerCase() === id.toLowerCase()
@@ -132,6 +165,7 @@ router.get("/packages/:id", (req, res) => {
 
 // Create package
 router.post("/packages", (req, res) => {
+  loadStore();
   const body = req.body || {};
   if (!body.id || !body.status || !body.senderName || !body.recipientName) {
     return res.status(400).json({ message: "Missing required package fields" });
@@ -160,11 +194,13 @@ router.post("/packages", (req, res) => {
   };
 
   memoryStore.packages.unshift(newPackage);
+  saveStore();
   return res.status(201).json(newPackage);
 });
 
 // Update package
 router.put("/packages/:id", (req, res) => {
+  loadStore();
   const { id } = req.params;
   const index = memoryStore.packages.findIndex(
     (p) => p.id.toLowerCase() === id.toLowerCase()
@@ -180,12 +216,14 @@ router.put("/packages/:id", (req, res) => {
     shipDate: body.shipDate ? new Date(body.shipDate).toISOString() : memoryStore.packages[index].shipDate,
     expectedDelivery: body.expectedDelivery ? new Date(body.expectedDelivery).toISOString() : memoryStore.packages[index].expectedDelivery,
   };
+  saveStore();
 
   return res.json(memoryStore.packages[index]);
 });
 
 // Delete package
 router.delete("/packages/:id", (req, res) => {
+  loadStore();
   const { id } = req.params;
   const initialLength = memoryStore.packages.length;
   memoryStore.packages = memoryStore.packages.filter(
@@ -196,11 +234,13 @@ router.delete("/packages/:id", (req, res) => {
     return res.status(404).json({ message: "Package not found" });
   }
 
+  saveStore();
   return res.json({ message: "Package deleted successfully" });
 });
 
 // Get all messages
 router.get("/messages", (req, res) => {
+  loadStore();
   const sorted = [...memoryStore.messages].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
@@ -209,6 +249,7 @@ router.get("/messages", (req, res) => {
 
 // Create new message
 router.post("/messages", (req, res) => {
+  loadStore();
   const body = req.body || {};
   if (!body.fullName || !body.email || !body.message) {
     return res.status(400).json({ message: "Full name, email, and message are required" });
@@ -224,11 +265,13 @@ router.post("/messages", (req, res) => {
   };
 
   memoryStore.messages.unshift(newMessage);
+  saveStore();
   return res.status(201).json(newMessage);
 });
 
 // Delete message
 router.delete("/messages/:id", (req, res) => {
+  loadStore();
   const { id } = req.params;
   const initialLength = memoryStore.messages.length;
   memoryStore.messages = memoryStore.messages.filter((m) => m.id !== id);
@@ -237,6 +280,7 @@ router.delete("/messages/:id", (req, res) => {
     return res.status(404).json({ message: "Message not found" });
   }
 
+  saveStore();
   return res.json({ message: "Message deleted successfully" });
 });
 
