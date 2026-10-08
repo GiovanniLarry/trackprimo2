@@ -155,15 +155,19 @@ router.get("/packages/:id", async (req, res) => {
 router.post("/packages", async (req, res) => {
   try {
     const body = req.body || {};
+    console.log("Creating package with body:", JSON.stringify(body, null, 2));
+    
     if (!body.id || !body.status || !body.senderName || !body.recipientName) {
       return res.status(400).json({ message: "Missing required package fields" });
     }
 
+    console.log("Checking for existing package...");
     const existing = await db.select().from(packages).where(eq(packages.id, body.id)).limit(1);
     if (existing && existing.length > 0) {
       return res.status(409).json({ message: "Package ID already exists" });
     }
 
+    console.log("Creating new package object...");
     const newPackage = {
       id: body.id,
       status: body.status,
@@ -179,11 +183,14 @@ router.post("/packages", async (req, res) => {
       createdAt: new Date()
     };
 
+    console.log("Inserting package into database...");
     await db.insert(packages).values(newPackage);
+    console.log("Package created successfully");
     return res.status(201).json(newPackage);
   } catch (err) {
     console.error("Error creating package:", err);
-    return res.status(500).json({ message: "Error creating package" });
+    console.error("Error details:", JSON.stringify(err, null, 2));
+    return res.status(500).json({ message: "Error creating package", error: err.message });
   }
 });
 
