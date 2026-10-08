@@ -193,7 +193,7 @@ router.put("/packages/:id", async (req, res) => {
     const { id } = req.params;
     const body = req.body || {};
     
-    const updateData: any = {};
+    const updateData = {};
     if (body.status) updateData.status = body.status;
     if (body.senderName) updateData.senderName = body.senderName;
     if (body.recipientName) updateData.recipientName = body.recipientName;
