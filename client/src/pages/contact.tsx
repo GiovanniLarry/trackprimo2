@@ -106,7 +106,7 @@ export default function Contact() {
                   
                   <div className="flex items-center space-x-4" data-testid="contact-whatsapp">
                     <WhatsAppButton
-                      phoneNumber="+12723638722"
+                      phoneNumber="423-225-9690"
                       className="p-3 rounded-full"
                     />
                     <div>

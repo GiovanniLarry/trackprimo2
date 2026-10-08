@@ -394,7 +394,7 @@ export default function Home() {
       </section>
 
       {/* Floating WhatsApp Button */}
-      <WhatsAppButton phoneNumber=" 423-225-9690" floating={true} />
+      <WhatsAppButton phoneNumber="423-225-9690" floating={true} />
     </div>
   );
 }
